@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RP Section</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 15px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header { background: white; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .header img { width: 70px; margin-bottom: 8px; }
+        .header h1 { font-size: 1.4rem; color: #333; margin-bottom: 3px; }
+        .header p { color: #666; font-size: 0.85rem; }
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; }
+        .info { flex: 1; }
+        .name { font-size: 1rem; font-weight: bold; color: #333; margin-bottom: 3px; }
+        .reg { font-size: 0.8rem; color: #666; }
+        .btn { background: #4caf50; color: white; border: none; border-radius: 8px; padding: 10px 18px; font-size: 0.95rem; font-weight: bold; cursor: pointer; min-width: 90px; }
+        .btn:disabled { background: #ccc; }
+        .empty { background: white; border-radius: 15px; padding: 35px 20px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .empty-icon { font-size: 3.5rem; margin-bottom: 12px; }
+        .refresh { background: white; color: #667eea; border: 2px solid #667eea; border-radius: 10px; padding: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; width: 100%; margin-top: 12px; }
+        .error { background: #fff0f0; border: 2px solid #d32f2f; border-radius: 10px; padding: 12px; margin-bottom: 12px; color: #d32f2f; text-align: center; font-size: 0.9rem; }
+        .success { background: #4caf50; color: white; padding: 12px; border-radius: 10px; margin-bottom: 12px; text-align: center; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d1/SLSC_LOGO.png" alt="Logo">
+            <h1>RP Section</h1>
+            <p>Arrival Tracker</p>
+        </div>
+        <div id="success" style="display:none;" class="success"></div>
+        <div id="error" style="display:none;" class="error"></div>
+        <div id="empty" style="display:none;" class="empty">
+            <div class="empty-icon">✅</div>
+            <h2 style="color:#333;margin-bottom:8px;">All Clear!</h2>
+            <p style="color:#666;">No personnel scheduled to arrive today</p>
+        </div>
+        <div id="list"></div>
+        <button class="refresh" onclick="load()">🔄 Refresh</button>
+    </div>
+    <script>
+        const URL = 'https://script.google.com/macros/s/AKfycbx2-aM7szGC-MKuqYZdvBta7UpULZfL_a3DlTnqzHlKiGJuUB7Q_VRsidbQG6hMSQoxag/exec';
+        let data = [];
+        window.onload = load;
+        function load() {
+            document.getElementById('error').style.display = 'none';
+            fetch(URL + '?action=getArrivingToday&username=rp_section&password=rp123&t=' + Date.now())
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        data = d.arrivals || [];
+                        show();
+                    } else {
+                        err('Failed: ' + d.message);
+                    }
+                })
+                .catch(e => err('Connection error. Check your internet.'));
+        }
+        function show() {
+            const list = document.getElementById('list');
+            const empty = document.getElementById('empty');
+            if (data.length === 0) {
+                empty.style.display = 'block';
+                list.innerHTML = '';
+            } else {
+                empty.style.display = 'none';
+                list.innerHTML = data.map(p => 
+                    '<div class="card"><div class="info"><div class="name">' + p.rank + ' ' + p.name + '</div><div class="reg">Reg: ' + p.regNo + '</div></div><button class="btn" onclick="mark(\'' + p.regNo + '\',this)">✓ Arrived</button></div>'
+                ).join('');
+            }
+        }
+        function mark(regNo, btn) {
+            if (!confirm('Mark as arrived?')) return;
+            btn.disabled = true;
+            btn.textContent = 'Wait...';
+            fetch(URL + '?action=markArrived&username=rp_section&password=rp123&regNo=' + regNo + '&t=' + Date.now())
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        ok(d.message || 'Marked as arrived!');
+                        data = data.filter(p => p.regNo !== regNo);
+                        show();
+                    } else {
+                        err('Failed: ' + d.message);
+                        btn.disabled = false;
+                        btn.textContent = '✓ Arrived';
+                    }
+                })
+                .catch(e => {
+                    err('Error: ' + e.message);
+                    btn.disabled = false;
+                    btn.textContent = '✓ Arrived';
+                });
+        }
+        function ok(msg) {
+            const el = document.getElementById('success');
+            el.textContent = msg;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+        function err(msg) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
